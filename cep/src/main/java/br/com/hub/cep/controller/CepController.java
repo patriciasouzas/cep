@@ -17,11 +17,11 @@ public class CepController {
 
     @GetMapping("/status")
     public String getStatus() {
-        return "Service status: " + service.getStatus();
+        return "Service status: " + this.service.getStatus();
     }
 
     @GetMapping("/zipcode/{zipcode}")
     public Address getAddressByZipcode(@PathVariable("zipcode") String zipcode) throws NoContentException, NotReadyException {
-        return service.getAddressByZipcode(zipcode);
+        return this.service.getAddressByZipcode(zipcode);
     }
 }
