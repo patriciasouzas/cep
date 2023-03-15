@@ -23,7 +23,7 @@ Baixe o projeto e execute a aplicação.<br>
 Até o projeto subir por completo, você vai receber o erro *503*, conforme exemplo abaixo.
 
 ## exemplos para testar
-###### curl http://localhost:6868/zipcode/03358150
+###### curl http://localhost:8080/zipcode/03358150
 *200 OK*
 ```JSON
 {
@@ -46,5 +46,5 @@ Até o projeto subir por completo, você vai receber o erro *503*, conforme exem
 }
 ```
 
-###### curl http://localhost:6868/zip/9999999
+###### curl http://localhost:8080/zip/9999999
 *204 No-Content*
