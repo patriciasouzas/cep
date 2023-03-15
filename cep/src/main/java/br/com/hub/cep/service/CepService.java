@@ -12,9 +12,13 @@ import br.com.hub.cep.repository.SetupRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.Optional;
 
 @Service
 public class CepService {
@@ -25,41 +29,53 @@ public class CepService {
     private AddressStatusRepository addressStatusRepository;
     @Autowired
     private SetupRepository setupRepository;
+    @Value("${setup.on.startup}")
+    private boolean setupOnStartup;
 
     public Status getStatus() {
         return addressStatusRepository.findById(AddressStatus.DEFAULT_ID)
                 .orElse(AddressStatus.builder().status(Status.NEED_SETUP).build()).getStatus();
     }
 
-    public Address getAddressByZipcode(String zipcode) throws NoContentException, NotReadyException {
-        if (!getStatus().equals(Status.READY)) throw new NotReadyException();
-        return addressRepository.findById(zipcode)
-                .orElseThrow(NoContentException::new);
+    public Address getAddressByZipcode(String zipcode) {
+
+        Optional<Address> addressOptional = addressRepository.findById(zipcode);
+
+        if (!getStatus().equals(Status.READY))
+            throw new NotReadyException("Service is in preparation. Wait a moment, please.");
+
+        if (addressOptional.isEmpty()) {
+            throw new NoContentException("Sorry, this zip code was not found.");
+        }
+        return addressOptional.get();
     }
 
-    public void setup() throws Exception {
+    public void setup() {
         logger.info("-----");
         logger.info("-----");
         logger.info("----- SETUP RUNNING");
         logger.info("-----");
         logger.info("-----");
 
-        if (getStatus().equals(Status.NEED_SETUP)) {
-            saveStatus(Status.SETUP_RUNNING);
-            try {
-                addressRepository.saveAll(setupRepository.getFromOrigin());
-            } catch (Exception exp) {
-                saveStatus(Status.NEED_SETUP);
-                throw exp;
-            }
-            saveStatus(Status.READY);
-        }
+        try {
+            if (getStatus().equals(Status.NEED_SETUP)) {
+                saveStatus(Status.SETUP_RUNNING);
 
-        logger.info("-----");
-        logger.info("-----");
-        logger.info("----- SERVICE READY");
-        logger.info("-----");
-        logger.info("-----");
+                addressRepository.saveAll(setupRepository.getFromOrigin());
+
+                saveStatus(Status.READY);
+            }
+
+            logger.info("-----");
+            logger.info("-----");
+            logger.info("----- SERVICE READY TO USE");
+            logger.info("-----");
+            logger.info("-----");
+
+        } catch (Exception exp) {
+            logger.error("Error to download/save address, closing the application.", exp);
+            CepApplication.close(9999);
+        }
 
     }
 
@@ -70,12 +86,11 @@ public class CepService {
                 .build());
     }
 
+    @Async
     @EventListener(ApplicationStartedEvent.class)
     protected void setupOnStartup() {
-        try {
+        if (setupOnStartup) {
             setup();
-        } catch (Exception exp) {
-            CepApplication.close(9999);
         }
     }
 
